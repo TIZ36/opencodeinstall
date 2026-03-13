@@ -9,6 +9,9 @@
 set -e
 
 INSTALL_OHMYOPENCODE="ask"
+# Fallback version when GitHub API is unreachable (e.g. network/firewall)
+OPENCODE_VERSION_FALLBACK="1.2.25"
+OPENCODE_VERSION=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,12 +64,22 @@ parse_args() {
             --without-ohmyopencode)
                 INSTALL_OHMYOPENCODE="no"
                 ;;
+            --version)
+                if [[ -n "${2:-}" ]]; then
+                    OPENCODE_VERSION="${2#v}"
+                    shift 2
+                else
+                    print_error "Option --version requires a version (e.g. 1.2.25)"
+                    exit 1
+                fi
+                ;;
             -h|--help)
                 echo "Usage: bash install_opencode.sh [options]"
                 echo ""
                 echo "Options:"
                 echo "  --with-ohmyopencode     Install OhMyOpenCode without prompt"
                 echo "  --without-ohmyopencode  Skip OhMyOpenCode without prompt"
+                echo "  --version VERSION       Install specific OpenCode version (e.g. 1.2.25)"
                 echo "  -h, --help              Show this help message"
                 exit 0
                 ;;
@@ -111,10 +124,25 @@ install_opencode_cli() {
 
     print_info "Using official installer from opencode.ai"
 
-    if command -v curl &> /dev/null; then
-        curl -fsSL https://opencode.ai/install | bash
+    # Resolve version: explicit > GitHub API latest > fallback
+    local version_to_install=""
+    if [[ -n "$OPENCODE_VERSION" ]]; then
+        version_to_install="$OPENCODE_VERSION"
+        print_info "Using requested version: $version_to_install"
     else
-        wget -qO- https://opencode.ai/install | bash
+        version_to_install=$(curl -s --connect-timeout 5 https://api.github.com/repos/anomalyco/opencode/releases/latest 2>/dev/null | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p' || true)
+        if [[ -z "$version_to_install" ]]; then
+            print_info "Could not fetch latest version from GitHub API, using fallback: $OPENCODE_VERSION_FALLBACK"
+            version_to_install="$OPENCODE_VERSION_FALLBACK"
+        else
+            print_info "Latest version: $version_to_install"
+        fi
+    fi
+
+    if command -v curl &> /dev/null; then
+        curl -fsSL https://opencode.ai/install | bash -s -- --version "$version_to_install"
+    else
+        wget -qO- https://opencode.ai/install | bash -s -- --version "$version_to_install"
     fi
     
     # Verify installation
