@@ -180,21 +180,22 @@ install_ohmyopencode() {
     if [ -d "$OHMYOPENCODE_DIR" ]; then
         print_info "OhMyOpenCode directory already exists, updating..."
         cd "$OHMYOPENCODE_DIR"
-        git pull origin main &>/dev/null || git pull origin master &>/dev/null || print_info "Could not update via git"
+        GIT_TERMINAL_PROMPT=0 git pull origin main &>/dev/null || GIT_TERMINAL_PROMPT=0 git pull origin master &>/dev/null || print_info "Could not update via git"
     else
         print_info "Cloning OhMyOpenCode repository..."
-        git clone https://github.com/anomalyco/ohmyopencode.git "$OHMYOPENCODE_DIR" 2>/dev/null || {
-            # Fallback: download as zip if git is not available
-            print_info "Downloading OhMyOpenCode as zip file..."
-            if command -v curl &> /dev/null; then
+        # GIT_TERMINAL_PROMPT=0: 禁止交互式凭据提示，公网仓库无需登录；若克隆失败则走 zip 回退
+        if ! (GIT_TERMINAL_PROMPT=0 git clone https://github.com/anomalyco/ohmyopencode.git "$OHMYOPENCODE_DIR" 2>/dev/null); then
+            print_info "Git clone skipped or failed, downloading OhMyOpenCode as zip..."
+            if command -v curl &> /dev/null && command -v unzip &> /dev/null; then
                 mkdir -p "$OHMYOPENCODE_DIR"
-                curl -L https://github.com/anomalyco/ohmyopencode/archive/main.zip -o /tmp/ohmyopencode.zip 2>/dev/null
-                cd "$OHMYOPENCODE_DIR"
-                unzip -q /tmp/ohmyopencode.zip
-                mv ohmyopencode-main/* .
-                rm -rf ohmyopencode-main /tmp/ohmyopencode.zip
+                curl -fsSL https://github.com/anomalyco/ohmyopencode/archive/refs/heads/main.zip -o /tmp/ohmyopencode.zip
+                ( cd "$OHMYOPENCODE_DIR" && unzip -q /tmp/ohmyopencode.zip && mv ohmyopencode-main/* . && rm -rf ohmyopencode-main )
+                rm -f /tmp/ohmyopencode.zip
+            else
+                print_error "Need curl and unzip to install OhMyOpenCode without git"
+                exit 1
             fi
-        }
+        fi
     fi
     
     if [ -d "$OHMYOPENCODE_DIR" ]; then
