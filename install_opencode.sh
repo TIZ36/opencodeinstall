@@ -91,51 +91,30 @@ check_prerequisites() {
     fi
     print_success "curl/wget is installed"
     
-    # Check for Node.js
-    if ! command -v node &> /dev/null; then
-        print_error "Node.js is required but not installed"
-        print_info "Please install Node.js from https://nodejs.org/"
-        exit 1
+    # Node.js/npm are optional because official installer may use brew/bun/curl flow
+    if command -v node &> /dev/null; then
+        print_success "Node.js is installed ($(node --version))"
+    else
+        print_info "Node.js not found (this is OK)"
     fi
-    print_success "Node.js is installed ($(node --version))"
-    
-    # Check for npm
-    if ! command -v npm &> /dev/null; then
-        print_error "npm is required but not installed"
-        exit 1
+
+    if command -v npm &> /dev/null; then
+        print_success "npm is installed ($(npm --version))"
+    else
+        print_info "npm not found (this is OK)"
     fi
-    print_success "npm is installed ($(npm --version))"
 }
 
 # Install OpenCode CLI
 install_opencode_cli() {
     print_header "Installing OpenCode CLI"
 
-    local latest_version
-    local installed_version
+    print_info "Using official installer from opencode.ai"
 
-    latest_version=$(npm view @anomalyco/opencode version 2>/dev/null || true)
-    installed_version=$(npm list -g @anomalyco/opencode --depth=0 2>/dev/null | grep -Eo '@anomalyco/opencode@[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | cut -d'@' -f3)
-
-    if [ -z "$latest_version" ]; then
-        print_error "Could not fetch latest OpenCode CLI version from npm"
-        exit 1
-    fi
-
-    print_info "Latest version on npm: $latest_version"
-
-    if [ -n "$installed_version" ]; then
-        print_info "Installed version: $installed_version"
+    if command -v curl &> /dev/null; then
+        curl -fsSL https://opencode.ai/install | bash
     else
-        print_info "OpenCode CLI is not currently installed"
-    fi
-
-    if [ "$installed_version" = "$latest_version" ]; then
-        print_success "OpenCode CLI is already up to date"
-    else
-        print_info "Installing/updating OpenCode CLI to latest..."
-        npm install -g @anomalyco/opencode@latest
-        print_success "OpenCode CLI installed/updated successfully"
+        wget -qO- https://opencode.ai/install | bash
     fi
     
     # Verify installation

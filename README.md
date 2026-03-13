@@ -2,7 +2,7 @@
 
 Linux/macOS one-script installer for:
 
-- latest `@anomalyco/opencode`
+- latest OpenCode CLI (via official installer)
 - optional `ohmyopencode`
 
 ## One-line install
